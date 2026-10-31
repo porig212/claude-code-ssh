@@ -340,6 +340,26 @@ if [ -n "${PNPM_VERSION:-}" ]; then
 fi
 
 # ==============================================================================
+# Step 12: Boot hook on the persistent volume
+# ==============================================================================
+# If /data/home/boot.sh exists and is executable, launch it as the claude user,
+# detached, so whatever lives on the volume can bring its own services back after
+# a container restart. It never blocks boot: init-setup does not wait for it, and
+# a missing, broken or failing hook only produces a warning. Its output goes to
+# /data/home/boot.log.
+BOOT_HOOK="${DATA_HOME}/boot.sh"
+BOOT_LOG="${DATA_HOME}/boot.log"
+if [ -f "${BOOT_HOOK}" ] && [ -x "${BOOT_HOOK}" ]; then
+    log "Launching boot hook ${BOOT_HOOK} as ${CLAUDE_USER} (detached)..."
+    # shellcheck disable=SC2016  # $1/$2 expand in the inner shell, not here
+    su - "${CLAUDE_USER}" -c 'setsid nohup "$1" </dev/null >>"$2" 2>&1 &' \
+        _ "${BOOT_HOOK}" "${BOOT_LOG}" \
+        || warn "Boot hook ${BOOT_HOOK} failed to launch; continuing."
+else
+    log "No executable boot hook at ${BOOT_HOOK}; skipping."
+fi
+
+# ==============================================================================
 # Done
 # ==============================================================================
 log "Initialization complete."
