@@ -311,11 +311,18 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
     log "  GITHUB_TOKEN configured (fine-grained PAT)."
 else
     # No token — set up gh CLI as credential helper for manual 'gh auth login'
-    su -s /bin/bash "${CLAUDE_USER}" -c '
-        git config --global credential.https://github.com.helper "!/usr/bin/gh auth git-credential"
-        git config --global credential.https://gist.github.com.helper "!/usr/bin/gh auth git-credential"
-    ' 2>/dev/null
-    log "  Git credential helper configured (gh auth). Run 'gh auth login' to authenticate."
+    # --replace-all: 'gh auth setup-git' writes each helper as two lines (an
+    # empty reset, then gh), and a plain 'git config' on a multi-valued key
+    # exits 5, which under set -e stopped the whole boot (2026-11-05).
+    # A git setting is never worth a box that won't start: warn and go on.
+    if su -s /bin/bash "${CLAUDE_USER}" -c '
+        git config --global --replace-all credential.https://github.com.helper "!/usr/bin/gh auth git-credential" &&
+        git config --global --replace-all credential.https://gist.github.com.helper "!/usr/bin/gh auth git-credential"
+    ' 2>/dev/null; then
+        log "  Git credential helper configured (gh auth). Run 'gh auth login' to authenticate."
+    else
+        warn "Could not set the gh git credential helper; continuing."
+    fi
 fi
 
 # ==============================================================================
