@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         xz-utils \
         ca-certificates \
         gnupg \
+        libicu72 \
+        rsync \
     && sed -i 's/^# *en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen \
     && locale-gen \
     && rm -rf /var/lib/apt/lists/*
